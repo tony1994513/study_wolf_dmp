@@ -25,6 +25,7 @@ import baxter_interface
 import pickle
 import rospy
 from std_srvs.srv import Trigger,TriggerResponse
+import pickle
 
 joint_cmd_names = [
     'right_s0',
@@ -40,16 +41,15 @@ def callback(req):
     global ending_angles
     resp = TriggerResponse()
     resp.success = True
-    ending_angles = ending_angles = [0.603621440033, 0.680703974624, -0.0709466114397,
-                         1.06650014278, -0.00920388472731, 1.1780972451, -0.39883500485]
+    ending_angles = [ 1.3138545448238568, -0.6273981422451342,-0.0279951493789088, 0.1507136124097419,  -0.024160197409195266, 2.0022284233874363, 0.4924078329112178]
     return resp
 
 def main():
     rospy.init_node("Test_online_dmp")
     trigger = rospy.Service('/task_change_flag', Trigger, callback)
     limb_interface = baxter_interface.limb.Limb('right')
-    y_des = np.loadtxt("go_to_pick_position_dmp.txt")
-    y_des = y_des[:,1:8]
+    y_des = np.loadtxt("test_1.txt")
+    y_des = y_des[:,9:16]
     move_to_start_position = y_des[0]
     limb_interface.move_to_joint_positions(dict(zip(joint_cmd_names, move_to_start_position)))
     starting_angles = [limb_interface.joint_angle(joint) for joint in limb_interface.joint_names()]
@@ -61,15 +61,20 @@ def main():
     # y_track, dy_track, ddy_track = dmp.rollout()
     dmp.reset_state()   
     global ending_angles
-    for t in range(dmp.timesteps):
-
+    ending_angles = y_des[-1]
+    y_track = []
+    # for t in range(dmp.timesteps):
+    while True:
         y, _, _ = dmp.step()
+        y_track.append(np.copy(y))
         print y
         limb_interface.set_joint_positions(dict(zip(joint_cmd_names,y)))
-        rospy.sleep(0.2)
-        ending_angles = y_des[-1]
+        rospy.sleep(0.05)
+        
         dmp.goal = ending_angles
+        
     print "Done"
+    np.save("y_track",y_track)
 
 if __name__ == '__main__':
     main()
